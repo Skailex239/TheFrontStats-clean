@@ -40,8 +40,8 @@
     --shadow-sm:0 2px 8px rgba(0,0,0,.04);
     --shadow-orange:0 8px 30px rgba(255,122,0,.12);
 
-    --f: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif;
-    --mono: 'SF Mono', 'Cascadia Code', Consolas, 'Liberation Mono', Menlo, monospace;
+    --f:'Inter',sans-serif;
+    --mono:'JetBrains Mono',monospace;
 
     /* Legacy aliases for auth.css / profile.css / animations.css compatibility */
     --accent:#ff7a00;
@@ -503,10 +503,10 @@ body{font-family:var(--f);background:var(--bg);color:var(--text);min-height:100v
 
 /* ── COSMETIC SKINS — PRISM ── */
 @keyframes prism-slide{from{background-position:0% 50%}to{background-position:100% 50%}}
-.rgb-prism{display:inline-block;font-family:var(--f);font-weight:900;background:linear-gradient(90deg,#ff0055,#ff6600,#ffdd00,#00ff88,#00ccff,#6644ff,#cc00ff,#ff0055,#ff6600,#ffdd00,#00ff88,#00ccff,#6644ff,#cc00ff,#ff0055);background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:transparent;animation:prism-slide 4s linear infinite}
-.run-row.is-prism .run-player{font-weight:900;font-size:16px;display:inline-block;font-family:var(--f);font-weight:900;background:linear-gradient(90deg,#ff0055,#ff6600,#ffdd00,#00ff88,#00ccff,#6644ff,#cc00ff,#ff0055,#ff6600,#ffdd00,#00ff88,#00ccff,#6644ff,#cc00ff,#ff0055);background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:transparent;animation:prism-slide 4s linear infinite}
+.rgb-prism{display:inline-block;font-family:'Orbitron',sans-serif;background:linear-gradient(90deg,#ff0055,#ff6600,#ffdd00,#00ff88,#00ccff,#6644ff,#cc00ff,#ff0055,#ff6600,#ffdd00,#00ff88,#00ccff,#6644ff,#cc00ff,#ff0055);background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:transparent;animation:prism-slide 4s linear infinite}
+.run-row.is-prism .run-player{font-weight:900;font-size:16px;display:inline-block;font-family:'Orbitron',sans-serif;background:linear-gradient(90deg,#ff0055,#ff6600,#ffdd00,#00ff88,#00ccff,#6644ff,#cc00ff,#ff0055,#ff6600,#ffdd00,#00ff88,#00ccff,#6644ff,#cc00ff,#ff0055);background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:transparent;animation:prism-slide 4s linear infinite}
 .run-row.is-prism{border-left:none!important}
-.global-player.rgb-prism{font-weight:900;font-size:15px;display:inline-block;font-family:var(--f);font-weight:900;background:linear-gradient(90deg,#ff0055,#ff6600,#ffdd00,#00ff88,#00ccff,#6644ff,#cc00ff,#ff0055,#ff6600,#ffdd00,#00ff88,#00ccff,#6644ff,#cc00ff,#ff0055);background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:transparent;animation:prism-slide 4s linear infinite}
+.global-player.rgb-prism{font-weight:900;font-size:15px;display:inline-block;font-family:'Orbitron',sans-serif;background:linear-gradient(90deg,#ff0055,#ff6600,#ffdd00,#00ff88,#00ccff,#6644ff,#cc00ff,#ff0055,#ff6600,#ffdd00,#00ff88,#00ccff,#6644ff,#cc00ff,#ff0055);background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:transparent;animation:prism-slide 4s linear infinite}
 
 /* ── BUTTON EFFECTS ── */
 button,.share-btn,.gg-btn,.runs-btn,.modal-close,.login-btn,.login-btn-sidebar,.user-badge,.nav-item,.tab-btn,.mode-btn,.dropdown-item,.see-more-btn,.run-replay,.profile-edit-btn,.auth-btn{transition:all .25s cubic-bezier(.4,0,.2,1);cursor:pointer}
