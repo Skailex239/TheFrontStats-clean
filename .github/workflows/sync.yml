@@ -1,0 +1,86 @@
+name: Auto Sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+jobs:
+  sync-standard:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm init -y --silent && npm install node-fetch@2 --silent
+      - run: node sync.js recent
+        env:
+          OPENFRONT_SKAILEX_ACCESS: ${{ secrets.OPENFRONT_SKAILEX_ACCESS }}
+          SYNC_HISTORY_WINDOWS: "500"
+      - name: Commit et push (standard) - CLEAN
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          rm -rf node_modules package.json package-lock.json 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # CLEAN: only 82KB public payload, NO runs.json.gz 16MB, NO seen.json 7MB
+          for f in runs_public.json.gz checkpoint.json; do
+            [ -f "$f" ] && git add "$f" -f
+          done
+          git diff --cached --quiet && { echo "no changes standard"; exit 0; }
+          git commit -m "[auto] sync"
+          git push
+
+  sync-compact:
+    needs: sync-standard
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm init -y --silent && npm install node-fetch@2 --silent
+      - run: node sync.js --mode=compact recent
+        env:
+          OPENFRONT_SKAILEX_ACCESS: ${{ secrets.OPENFRONT_SKAILEX_ACCESS }}
+          COMPACT_HISTORY_WINDOWS: "500"
+      - name: Commit et push (compact) - CLEAN
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          rm -rf node_modules package.json package-lock.json 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          for f in runs_compact_public.json.gz checkpoint_compact.json; do
+            [ -f "$f" ] && git add "$f" -f
+          done
+          git diff --cached --quiet && { echo "no changes compact"; exit 0; }
+          git commit -m "[auto] sync compact"
+          git push
+
+  retrigger:
+    needs: [sync-standard, sync-compact]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
+    steps:
+      - name: Redeclencher sync + deploy Pages dans 30s
+        run: |
+          sleep 30
+          curl -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-pages.yml/dispatches -d '{"ref":"main"}' || echo "deploy dispatch failed"
+          curl -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/actions/workflows/sync.yml/dispatches -d '{"ref":"main"}' || echo "sync retrigger failed"

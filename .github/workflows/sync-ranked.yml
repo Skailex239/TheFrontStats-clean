@@ -1,0 +1,55 @@
+name: Sync Ranked
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+concurrency:
+  group: sync-ranked
+  cancel-in-progress: true
+
+jobs:
+  sync-ranked:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm init -y --silent && npm install node-fetch@2 --silent
+      - run: node sync-ranked.js
+        env:
+          OPENFRONT_SKAILEX_ACCESS: ${{ secrets.OPENFRONT_SKAILEX_ACCESS }}
+      - name: Commit et push (ranked) - CLEAN
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          rm -rf node_modules package.json package-lock.json 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # CLEAN: only small files, no ranked_history.json raw (877KB), only gz
+          for f in ranked.json ranked.json.gz ranked_history.json.gz; do
+            [ -f "$f" ] && git add "$f" -f
+          done
+          git diff --cached --quiet && { echo "no changes ranked"; exit 0; }
+          git commit -m "[auto] sync ranked"
+          git push
+
+  retrigger:
+    needs: sync-ranked
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
+    steps:
+      - name: Re-declencher dans 60s
+        run: |
+          sleep 60
+          curl -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/actions/workflows/sync-ranked.yml/dispatches -d '{"ref":"main"}' || echo "retrigger failed"
