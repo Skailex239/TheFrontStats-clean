@@ -1,0 +1,28 @@
+node_modules/
+.vite/
+.env
+dist/
+*.log
+
+# ─── Données brutes (non compressées) — trop gros, jamais commités ───
+runs.json
+runs_compact.json
+
+# ─── Backups — jamais commités ───
+runs_backup.json
+runs_backup.json.gz
+runs_backup_before_reset.json
+runs_backup_full_before_reset.json
+runs_compact_backup.json
+runs_compact_backup.json.gz
+
+# ─── Fichiers de suivi obsolètes ───
+seen_backup_before_reset.json
+
+# ─── Public payload: raw JSON pas nécessaire, seul .gz est servi ───
+runs_public.json
+runs_compact_public.json
+
+# ─── Autres gros fichiers ───
+player_aliases.json
+verified_game_ids.json
