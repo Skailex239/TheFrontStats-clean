@@ -9,29 +9,6 @@ dist/
 *.log
 .DS_Store
 
-# ── Data lourde (ne JAMAIS commiter sur main) ──
-seen*.json
-seen_backup_before_reset.json
-runs.json
-runs.json.gz
-runs_compact.json
-runs_compact.json.gz
-runs_full.json
-runs_backup.json
-runs_backup.json.gz
-runs_compact_full.json
-runs_compact_backup.json
-runs_backup_before_reset.json
-runs_backup_full_before_reset.json
-runs_compact_backup.json.gz
-*full.json
+# Backups (ne jamais commit)
 *backup.json
-
-# Public raw (seul .gz servi)
-runs_public.json
-runs_compact_public.json
-ranked_history.json
-
-# Autres gros
-player_aliases.json
-verified_game_ids.json
+*full.json
