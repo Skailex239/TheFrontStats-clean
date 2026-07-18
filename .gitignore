@@ -1,5 +1,17 @@
-# ── Data lourde (ne JAMAIS commiter) ──
+# Deps
+node_modules/
+.vite/
+dist/
+# Env
+.env
+.env.*
+# Logs
+*.log
+.DS_Store
+
+# ── Data lourde (ne JAMAIS commiter sur main) ──
 seen*.json
+seen_backup_before_reset.json
 runs.json
 runs.json.gz
 runs_compact.json
@@ -9,10 +21,17 @@ runs_backup.json
 runs_backup.json.gz
 runs_compact_full.json
 runs_compact_backup.json
+runs_backup_before_reset.json
+runs_backup_full_before_reset.json
+runs_compact_backup.json.gz
 *full.json
 *backup.json
+
+# Public raw (seul .gz servi)
+runs_public.json
+runs_compact_public.json
 ranked_history.json
-.env
-node_modules/
-.DS_Store
-*.log
+
+# Autres gros
+player_aliases.json
+verified_game_ids.json
