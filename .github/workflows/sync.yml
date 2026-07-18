@@ -33,7 +33,7 @@ jobs:
         env:
           OPENFRONT_SKAILEX_ACCESS: ${{ secrets.OPENFRONT_SKAILEX_ACCESS }}
           COMPACT_HISTORY_WINDOWS: "500"
-      - name: Commit and push (clean)
+      - name: Commit and push
         run: |
           rm -rf node_modules package.json package-lock.json 2>/dev/null || true
           git config user.name "github-actions[bot]"
@@ -42,22 +42,30 @@ jobs:
             [ -f "$f" ] && git add "$f" -f
           done
           git diff --cached --quiet && { echo "no changes"; exit 0; }
-          git commit -m "[auto] sync standard+compact $(date -u '+%Y-%m-%d %H:%M UTC')"
-          for i in 1 2 3; do
-            git push && break
-            echo "Push rejected, rebasing $i/3..."
-            git pull --rebase origin main || (git fetch origin main && git rebase origin/main)
-            sleep 2
-          done
+          git commit -m "[auto] sync standard+compact $(date -u)"
+          for i in 1 2 3; do git push && break; git pull --rebase origin main; sleep 2; done
+
+  deploy:
+    needs: sync-all
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+      actions: write
+    steps:
+      - name: Trigger GitHub Pages deploy
+        run: |
+          curl -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-pages.yml/dispatches -d '{"ref":"main"}' || echo "deploy trigger sent"
 
   retrigger:
-    needs: sync-all
+    needs: [sync-all, deploy]
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-latest
     permissions:
       actions: write
-    if: ${{ github.event_name == 'schedule' }}
     steps:
-      - name: Trigger Pages
+      - name: Reschedule next sync in 60s
         run: |
-          sleep 10
-          curl -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-pages.yml/dispatches -d '{"ref":"main"}' || true
+          sleep 60
+          curl -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/actions/workflows/sync.yml/dispatches -d '{"ref":"main"}' || echo "retrigger sent"
