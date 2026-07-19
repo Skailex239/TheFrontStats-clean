@@ -5,67 +5,100 @@ on:
   schedule:
     - cron: "*/15 * * * *"
 
-concurrency:
-  group: sync
-  cancel-in-progress: true
-
 jobs:
-  sync-all:
+  sync-standard:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
+    outputs:
+      committed: ${{ steps.commit-standard.outputs.committed }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
+          fetch-depth: 1
+      - uses: actions/setup-node@v3
         with:
-          node-version: '20'
-      - run: npm init -y --silent && npm install node-fetch@2 --silent
-      - name: Sync standard
-        run: node sync.js recent
+          node-version: '18'
+      - run: npm init -y --silent && npm install node-fetch@2 --silent && node -e "const p=require('./package.json');p.type='module';require('fs').writeFileSync('package.json',JSON.stringify(p,null,2))"
+      - run: node sync.js
         env:
           OPENFRONT_SKAILEX_ACCESS: ${{ secrets.OPENFRONT_SKAILEX_ACCESS }}
           SYNC_HISTORY_WINDOWS: "500"
-      - name: Sync compact
-        run: node sync.js --mode=compact recent
+      - name: Commit et push (standard)
+        id: commit-standard
         env:
-          OPENFRONT_SKAILEX_ACCESS: ${{ secrets.OPENFRONT_SKAILEX_ACCESS }}
-          COMPACT_HISTORY_WINDOWS: "500"
-      - name: Commit and push
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           rm -rf node_modules package.json package-lock.json 2>/dev/null || true
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          for f in runs_public.json.gz runs_compact_public.json.gz checkpoint.json checkpoint_compact.json; do
-            [ -f "$f" ] && git add "$f" -f
+          for f in runs_public.json.gz runs.json.gz clans.json clans.json.gz news.json news.json.gz seen.json checkpoint.json; do
+            [ -f "$f" ] && git add "$f"
           done
-          git diff --cached --quiet && { echo "no changes"; exit 0; }
-          git commit -m "[auto] sync standard+compact $(date -u)"
-          for i in 1 2 3; do git push && break; git pull --rebase origin main; sleep 2; done
+          git diff --cached --quiet && { echo "no changes standard"; echo "committed=false" >> $GITHUB_OUTPUT; exit 0; }
+          git commit -m "[auto] sync"
+          CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | tr '\n' ' ')
+          if [ -z "$CHANGED" ]; then echo "No changed files to push"; echo "committed=false" >> $GITHUB_OUTPUT; exit 0; fi
+          echo "Pushing: $CHANGED"
+          python3 push_via_api.py "[auto] sync" $CHANGED
+          echo "committed=true" >> $GITHUB_OUTPUT
 
-  deploy:
-    needs: sync-all
-    if: ${{ !cancelled() }}
+  sync-compact:
+    needs: sync-standard
     runs-on: ubuntu-latest
     permissions:
-      pages: write
-      id-token: write
+      contents: write
       actions: write
+    outputs:
+      committed: ${{ steps.commit-compact.outputs.committed }}
     steps:
-      - name: Trigger GitHub Pages deploy
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - run: npm init -y --silent && npm install node-fetch@2 --silent && node -e "const p=require('./package.json');p.type='module';require('fs').writeFileSync('package.json',JSON.stringify(p,null,2))"
+      - run: node sync.js --mode=compact
+        env:
+          OPENFRONT_SKAILEX_ACCESS: ${{ secrets.OPENFRONT_SKAILEX_ACCESS }}
+          COMPACT_HISTORY_WINDOWS: "500"
+      - name: Commit et push (compact)
+        id: commit-compact
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          curl -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-pages.yml/dispatches -d '{"ref":"main"}' || echo "deploy trigger sent"
+          rm -rf node_modules package.json package-lock.json 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          for f in runs_compact_public.json.gz runs_compact.json.gz seen_compact.json checkpoint_compact.json; do
+            [ -f "$f" ] && git add "$f"
+          done
+          git diff --cached --quiet && { echo "no changes compact"; echo "committed=false" >> $GITHUB_OUTPUT; exit 0; }
+          git commit -m "[auto] sync compact"
+          CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | tr '\n' ' ')
+          if [ -z "$CHANGED" ]; then echo "No changed files to push"; echo "committed=false" >> $GITHUB_OUTPUT; exit 0; fi
+          echo "Pushing: $CHANGED"
+          python3 push_via_api.py "[auto] sync compact" $CHANGED
+          echo "committed=true" >> $GITHUB_OUTPUT
 
   retrigger:
-    needs: [sync-all, deploy]
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+    needs: [sync-standard, sync-compact]
     runs-on: ubuntu-latest
     permissions:
       actions: write
+    # C5: Anti-loop guard — only retrigger if at least one sync job committed changes
+    # Prevents infinite retrigger loops when sync crashes without committing
+    if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && (needs.sync-standard.outputs.committed == 'true' || needs.sync-compact.outputs.committed == 'true') }}
     steps:
-      - name: Reschedule next sync in 60s
+      - name: Redeclencher sync + deploy Pages dans 30 secondes
         run: |
-          sleep 60
-          curl -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/actions/workflows/sync.yml/dispatches -d '{"ref":"main"}' || echo "retrigger sent"
+          sleep 30
+          # Déclencher le déploiement Pages (les commits GITHUB_TOKEN ne déclenchent pas automatiquement les workflows)
+          curl -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-pages.yml/dispatches -d '{"ref":"main"}' || echo "Deploy dispatch failed"
+          # Relancer la sync pour le cycle suivant
+          curl -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/actions/workflows/sync.yml/dispatches -d '{"ref":"main"}' || echo "Sync retrigger failed"
+        shell: bash
